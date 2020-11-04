@@ -37,10 +37,14 @@ namespace SimpleWebClient
 
             var fileName = GetArgumentIfExist(2) ?? string.Empty;
 
-            var attempts = 1;
-            int.TryParse(GetArgumentIfExist(3), out attempts);
+            if(!int.TryParse(GetArgumentIfExist(3), out int attempts))
+            {
+                attempts = 1;
+            }
 
             var requestToSend = $"GET /{fileName}".ToByteArray();
+            Console.WriteLine($"Attempting to connect to {address}:{port} and perform the following request {attempts} times");
+            Console.WriteLine(requestToSend.ToOutputString());
             //var ipAddresses = Dns.GetHostAddresses(address);
             for (int i = 0; i < attempts; i++)
             {
@@ -81,8 +85,8 @@ namespace SimpleWebClient
             {
                 await stream.WriteAsync(sendBuffer);
                 var receivedData = new byte[20000];
-                await stream.ReadAsync(receivedData);
-                Console.WriteLine($"Received: {receivedData.ToOutputString()}");
+                var bytesReceived = await stream.ReadAsync(receivedData);
+                Console.WriteLine($"\n{receivedData[..bytesReceived].ToOutputString()}\n");
                 Interlocked.Increment(ref requestCounter);
             }
             catch (Exception ex)

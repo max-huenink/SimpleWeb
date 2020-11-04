@@ -47,8 +47,12 @@ namespace SimpleWebServer
                 //tasks.RemoveAll(t => t.IsCompleted);
             }
             */
+            Console.WriteLine("Press Control + D to gracefully exit when there are existing connection requests");
+            Console.WriteLine("Press Control + C to forcefully exit");
             Console.WriteLine($"Listening at {ipAddress}:{port}");
-            while (!Console.KeyAvailable || Console.ReadKey().KeyChar.ToString().ToUpper()!="C")
+            ConsoleKeyInfo keyInfo = new ConsoleKeyInfo(' ', ConsoleKey.F24, false, false, false);
+            // Control+D to exit
+            do
             {
                 //tasks.RemoveAll(t => t.IsCompleted);
                 var server = await listener.AcceptAsync();
@@ -56,16 +60,22 @@ namespace SimpleWebServer
                 //await Task.Run(async () => await myFunction(server, connections++)).ConfigureAwait(false);
                 //_ = Task.Run(async () => await myFunction(server, connections++).ConfigureAwait(false)).ConfigureAwait(false);
                 tasks.Add(Task.Run(async () => await ConnectAndHandle(server, connections++)));
+                if (Console.KeyAvailable)
+                {
+                    keyInfo = Console.ReadKey(true);
+                }
             }
+            while (keyInfo.Key == ConsoleKey.F24 || !(keyInfo.Modifiers.HasFlag(ConsoleModifiers.Control) && keyInfo.Key.ToString().ToLower() == "d"));
             await Task.WhenAll(tasks);
             Console.WriteLine($"Executed {connections} connections.");
         }
+
         private static async Task ConnectAndHandle(Socket server, int connectionNumber)
         {
             var receivedData = new byte[20000];
             int bytesReceived = await server.ReceiveAsync(receivedData, SocketFlags.None);
 
-            var stringData = receivedData.ToOutputString();
+            var stringData = receivedData[..bytesReceived].ToOutputString();
             var data = stringData.Split(" ");
             Console.WriteLine($"Connection {connectionNumber} Received: {stringData}");
 
@@ -382,7 +392,5 @@ namespace SimpleWebServer
 
         public static string ToOutputString(this byte[] arr) =>
             string.Join("", arr.Select(b => (char)b).ToArray());
-        public static string ToOutputString(this ArraySegment<byte> arr) =>
-            arr.ToArray().ToOutputString();
     }
 }
