@@ -6,22 +6,24 @@ using System.Threading.Tasks;
 using System.IO;
 using System.Collections.Generic;
 using System.Threading;
+using System.Runtime.CompilerServices;
 
 namespace SimpleWebServer
 {
     class Program
     {
         private static readonly string webRoot = Path.Combine(Directory.GetCurrentDirectory(), "www");
-        static int requestCounter;
+        //static int requestCounter;
         static async Task Main(string[] args)
         {
-
             int port = 8888;
             var ipAddress = new IPAddress(new byte[] { 0, 0, 0, 0 });
             var endPoint = new IPEndPoint(ipAddress, port);
+
             using var listener = new Socket(ipAddress.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
             listener.Bind(endPoint);
             listener.Listen(10);
+
             int connections = 0;
             var tasks = new List<Task>();
             /*
@@ -45,23 +47,27 @@ namespace SimpleWebServer
                 //tasks.RemoveAll(t => t.IsCompleted);
             }
             */
-            while (true)
+            Console.WriteLine($"Listening at {ipAddress}:{port}");
+            while (!Console.KeyAvailable || Console.ReadKey().KeyChar.ToString().ToUpper()!="C")
             {
                 //tasks.RemoveAll(t => t.IsCompleted);
                 var server = await listener.AcceptAsync();
                 //tasks.Add(Task.Run(async () => await myFunction(server, connections++)));
                 //await Task.Run(async () => await myFunction(server, connections++)).ConfigureAwait(false);
-                _ = Task.Run(async () => await myFunction(server, connections++).ConfigureAwait(false)).ConfigureAwait(false);
+                //_ = Task.Run(async () => await myFunction(server, connections++).ConfigureAwait(false)).ConfigureAwait(false);
+                tasks.Add(Task.Run(async () => await ConnectAndHandle(server, connections++)));
             }
+            await Task.WhenAll(tasks);
+            Console.WriteLine($"Executed {connections} connections.");
         }
-        private static async Task myFunction(Socket server, int connectionNumber)
+        private static async Task ConnectAndHandle(Socket server, int connectionNumber)
         {
             var receivedData = new byte[20000];
             int bytesReceived = await server.ReceiveAsync(receivedData, SocketFlags.None);
 
             var stringData = receivedData.ToOutputString();
             var data = stringData.Split(" ");
-            //Console.WriteLine($"Connection {connectionNumber}\nReceived:\n{stringData}");
+            Console.WriteLine($"Connection {connectionNumber} Received: {stringData}");
 
             byte[] sendBuffer;
 
@@ -70,7 +76,13 @@ namespace SimpleWebServer
 
             if (data[0] == "GET" && data[1].Equals("/"))
             {
-                var fileList = $"<html><head><title>index</title></head><body>{string.Join("", Directory.GetFiles(webRoot).Select(f => $@"<p><a href=""{Path.GetFileName(f)}"">{Path.GetFileName(f)}</a></p>"))}</body>";
+                var fileList = $"<html>" +
+                    $"<head>" +
+                    $"<title>index</title>" +
+                    $"</head>" +
+                    $"<body>" +
+                    $"{string.Join("", Directory.GetFiles(webRoot).Select(f => $@"<p><a href=""{Path.GetFileName(f)}"">{Path.GetFileName(f)}</a></p>"))}" +
+                    $"</body>";
                 myOkMessage += $"{fileList.Length}\r\n\n{fileList}";
                 sendBuffer = myOkMessage.ToByteArray();
             }
@@ -88,7 +100,7 @@ namespace SimpleWebServer
 
             int bytesSent = await server.SendAsync(sendBuffer, SocketFlags.None);
 
-            string message = $"Connection: {connectionNumber}\n";
+            string message = $"Connection: {connectionNumber} ";
             if (bytesSent == sendBuffer.Length)
             {
                 message += $"Successfully sent {bytesSent} bytes of data";
@@ -97,9 +109,11 @@ namespace SimpleWebServer
             {
                 message += $"Failed to send data";
             }
-            //Console.WriteLine(message);
+            Console.WriteLine(message);
             server.Close();
         }
+
+        /*
         private static void myAccept(IAsyncResult result)
         {
             var request = (SocketRequest)result.AsyncState;
@@ -293,7 +307,9 @@ namespace SimpleWebServer
             }
 
         }
+        */
     }
+    /*
     public class SocketRequest
     {
         public int ConnectionNumber { get; }
@@ -357,6 +373,7 @@ namespace SimpleWebServer
             Listener = listener;
         }
     }
+    */
 
     public static class MyExtensions
     {

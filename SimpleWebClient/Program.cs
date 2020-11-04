@@ -5,21 +5,44 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Threading;
+using System.Runtime.CompilerServices;
 
 namespace SimpleWebClient
 {
     class Program
     {
         static int requestCounter;
+        private static string[] programArguments;
         static async Task Main(string[] args)
         {
+            programArguments = args;
             var tasks = new List<Task>();
-            var requests = new List<ConnectionRequest>();
-            var requestToSend = "GET /this_is_my_get_request".ToByteArray();
-            var address = "localhost";
-            var port = 8888;
-            var ipAddresses = Dns.GetHostAddresses(address);
-            for (int i = 0; i < 10000; i++)
+            //var requests = new List<ConnectionRequest>();
+
+            var address = GetArgumentIfExist(0);
+            if(address is null)
+            {
+                Console.WriteLine("Enter a host address: ");
+                address = Console.ReadLine();
+            }
+
+            if (!int.TryParse(GetArgumentIfExist(1), out int port))
+            {
+                do
+                {
+                    Console.Write("Enter a port number: ");
+                }
+                while (!int.TryParse(Console.ReadLine(), out port));
+            }
+
+            var fileName = GetArgumentIfExist(2) ?? string.Empty;
+
+            var attempts = 1;
+            int.TryParse(GetArgumentIfExist(3), out attempts);
+
+            var requestToSend = $"GET /{fileName}".ToByteArray();
+            //var ipAddresses = Dns.GetHostAddresses(address);
+            for (int i = 0; i < attempts; i++)
             {
                 //var client = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
                 //Interlocked.Increment(ref requestCounter);
@@ -35,36 +58,54 @@ namespace SimpleWebClient
                 {
                     using var tcpClient = new TcpClient(address, port);
                     using var stream = tcpClient.GetStream();
-                    await myTCPFunction(stream, requestToSend);
+                    await SendAndReceive(stream, requestToSend);
                 }));
             }
-            await Task.WhenAll(tasks);
-            Console.WriteLine($"Successfully completed {requestCounter} requests");
-            //var sw = new SpinWait();
-            //while(requestCounter>0)
-            //{
-            //    sw.SpinOnce();
-            //}
+            try
+            {
+                await Task.WhenAll(tasks);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Process failed with: {ex.Message}");
+            }
+            finally
+            {
+                Console.WriteLine($"Successfully completed {requestCounter} requests");
+            }
         }
-        private static async Task myTCPFunction(NetworkStream stream, byte[] sendBuffer)
+
+        private static async Task SendAndReceive(NetworkStream stream, byte[] sendBuffer)
         {
             try
             {
                 await stream.WriteAsync(sendBuffer);
                 var receivedData = new byte[20000];
                 await stream.ReadAsync(receivedData);
-                //Console.WriteLine($"Received: {receivedData.ToOutputString()}");
+                Console.WriteLine($"Received: {receivedData.ToOutputString()}");
                 Interlocked.Increment(ref requestCounter);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-
+                Console.WriteLine($"Connection failed with exception message: {ex.Message}");
             }
             finally
             {
                 stream.Close();
             }
         }
+
+        private static string GetArgumentIfExist(int index)
+        {
+            string arg = null;
+            if (programArguments.Length > index)
+            {
+                arg = programArguments[index];
+            }
+            return arg;
+        }
+
+        /*
         private static async Task myFunction(Socket client, IPAddress[] ipAddresses, int port, byte[] sentData)
         {
             await client.ConnectAsync(ipAddresses, port);
@@ -133,7 +174,9 @@ namespace SimpleWebClient
                 Interlocked.Decrement(ref requestCounter);
             }
         }
+        */
     }
+    /*
     public class ConnectionRequest
     {
         public int ConnectionNumber { get; }
@@ -152,6 +195,7 @@ namespace SimpleWebClient
             Client = client;
         }
     }
+        */
     public static class MyExtensions
     {
         public static byte[] ToByteArray(this string str) =>
