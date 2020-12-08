@@ -64,6 +64,8 @@ namespace SimpleWebServer
             {
                 Console.WriteLine($"Executed {connections} connections.");
             }
+            Console.Write("Press enter to exit...");
+            Console.ReadLine();
         }
 
         /// <summary>

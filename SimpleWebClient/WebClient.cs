@@ -83,6 +83,8 @@ namespace SimpleWebClient
             {
                 Console.WriteLine($"Successfully completed {successfulRequests} requests");
             }
+            Console.WriteLine("Press enter to exit...");
+            Console.ReadLine();
         }
 
         /// <summary>
